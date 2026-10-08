@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kestrel request router</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#222}
+textarea,select{width:100%;padding:.6rem;font:inherit;border:1px solid #bbb;border-radius:6px;box-sizing:border-box}
+button{padding:.6rem 1.2rem;font:inherit;background:#1f4e79;color:#fff;border:0;border-radius:6px;cursor:pointer;margin:.6rem .4rem .6rem 0}
+button.alt{background:#eee;color:#222}
+.card{border:1px solid #ccc;border-radius:8px;padding:1rem;margin-top:1rem}.ok{border-left:6px solid #2e8b57}.hold{border-left:6px solid #d98200}.err{border-left:6px solid #b22}
+.big{font-size:1.4rem;font-weight:600}.muted{color:#666;font-size:.9rem}
+</style></head><body>
+<h1>Where should this request go?</h1>
+<p class="muted">Paste the customer's message. Nothing leaves this machine.</p>
+<textarea id="t" rows="4" placeholder="e.g. need installation for my new purifier"></textarea>
+<div><button id="go">Route it</button>
+<button class="alt" data-ex="payment deducted but order not placed, please check">Example: payment</button>
+<button class="alt" data-ex="i paid extra for installation, installer did not turn up for room heater">Example: says &quot;paid&quot;</button>
+<button class="alt" data-ex="please call back regarding my purifier">Example: vague</button></div>
+<div id="out"></div>
+<script>
+const $=id=>document.getElementById(id);
+document.querySelectorAll('[data-ex]').forEach(b=>b.onclick=()=>{$('t').value=b.dataset.ex;go()});
+$('go').onclick=go;
+async function go(){
+  const out=$('out');out.innerHTML='';
+  try{
+    const r=await fetch('/route',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request_text:$('t').value})});
+    const j=await r.json();
+    if(!r.ok){out.innerHTML='<div class="card err">'+esc(j.error||'Something went wrong.')+'</div>';return}
+    const alts=j.alternatives.map(a=>esc(a.team)+' '+Math.round(a.confidence*100)+'%').join(' &middot; ');
+    out.innerHTML='<div class="card '+(j.auto_route?'ok':'hold')+'"><div class="muted">'+(j.auto_route?'Send to':'Do not auto-route &mdash;')+'</div>'
+     +'<div class="big">'+esc(j.send_to)+'</div><div class="muted">Confidence '+Math.round(j.confidence*100)+'% &middot; best guess: '+esc(j.team)+'</div>'
+     +'<ul>'+j.reasons.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><div class="muted">Next best: '+alts+'</div></div>';
+  }catch(e){out.innerHTML='<div class="card err">Could not reach the routing service. Is it running?</div>'}
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+</script></body></html>
