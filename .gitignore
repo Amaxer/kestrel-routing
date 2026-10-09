@@ -3,3 +3,4 @@ data/
 !evidence/*.csv
 __pycache__/
 .venv/
+!predictions.csv
